@@ -13,7 +13,7 @@ psi_ref = -110 * pi/180;  % desired yaw angle (rad)
 U_ref   = 9; %7;            % desired surge speed (m/s)
 
 % initial states
-eta = [0 0 deg2rad(-0)]';
+eta = [0 0 deg2rad(-110)]';
 nu  = [0.1 0 0]';
 delta = 0;
 n = 0;
@@ -54,7 +54,7 @@ j           = 2;      % next waypoint number
 finished    = 0;
 kappa       = 0.7;
 y_int       = 0;
-Delta       = 1000;
+Delta       = 1500;
 ship_length = 161;
 R_switch    = 5 * ship_length;
 addpath('WP_and_pathplotter')
@@ -115,8 +115,8 @@ for i=1:Ns+1
     end
 
     
-    % chi_d             = guidance(x_t, y_t, x_ref, y_ref, x_now, y_now, Delta);  
-    [chi_d,y_int]       = guidance_ILOS(x_t, y_t, x_ref, y_ref, x_now, y_now, Delta, y_int, kappa, h);
+    chi_d             = guidance(x_t, y_t, x_ref, y_ref, x_now, y_now, Delta);  
+    %[chi_d,y_int]       = guidance_ILOS(x_t, y_t, x_ref, y_ref, x_now, y_now, Delta, y_int, kappa, h);
     psi_d               = chi_d;
         
     % reference models
@@ -135,6 +135,7 @@ for i=1:Ns+1
     % ship dynamics
     u               = [delta_c n_c]';
     [xdot,u,Qm]     = ship(x,u,nu_c,tau_wind,Qm);
+    
     
     
     
@@ -166,7 +167,6 @@ r_d     = (180/pi) * simdata(:,14);     % deg/s
 beta    = (180/pi) * simdata(:,15);     % deg, sideslip
 beta_c  = (180/pi) * simdata(:,16);     % deg, crab angle
 chi_d   = (180/pi) * simdata(:,17)';    % deg, desired course angle
-
 chi     = (psi + beta_c)';
 
 figure(1)
@@ -176,6 +176,7 @@ plot(y,x,'linewidth',2); axis('equal')
 title('North-East positions (m)'); xlabel('(m)'); ylabel('(m)'); 
 subplot(212)
 plot(t,psi,t,psi_d,'linewidth',2);
+legend("Actual yaw angle, \psi", "Desired yaw angle, \psi_d")
 title('Actual and desired yaw angles (deg)'); xlabel('time (s)');
 % subplot(313)
 % plot(t,r,t,r_d,'linewidth',2);
@@ -185,6 +186,7 @@ figure(2)
 figure(gcf)
 subplot(311)
 plot(t,u,t,u_d,'linewidth',2);
+legend("Actual surge velocities", "Desired surge velocities")
 title('Actual and desired surge velocities (m/s)'); xlabel('time (s)');
 subplot(312)
 plot(t,n,t,n_c,'linewidth',2);
@@ -204,6 +206,21 @@ figure(gcf)
 plot(t, chi, t, chi_d, 'linewidth', 2);
 legend('Course angle, \chi', 'Desired course angle, \chi_d')
 title('Course angle and desired course angle');
+
+figure(5)
+figure(gcf)
+subplot(211)
+% Course, desired course, heading
+plot(t,chi,t,chi_d,t,psi,'linewidth',2);
+leg1 = legend('Course $\chi$','Desired course $\chi_d$','Heading $\psi$');
+set(leg1,'Interpreter','latex');
+title('Course, desired course and heading (deg)'); xlabel('time (s)');
+subplot(212)
+% Crab angle and sideslip
+plot(t,beta,t,beta_c,'linewidth',2);
+leg2 = legend('Crab angle $\beta_c$','Sideslip $\beta$');
+set(leg2,'Interpreter','latex');
+title('Crab angle and sideslip (deg)'); xlabel('time (s)');
 
 
 % pathplotter

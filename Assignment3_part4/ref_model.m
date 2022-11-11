@@ -13,7 +13,7 @@ function [psi_r, r_r, a_r] = ref_model(psi_d, psi_r, h, r_r, a_r)
     a_max   = 0.5;
 
 %     w_ref       = 0.03;
-    w_ref       = 0.5;
+    w_ref       = 0.9;
     zeta_ref    = 1;
     
     a_r         = a_r + (-(2*zeta_ref + 1)*w_ref*sat(a_r, a_max) ...

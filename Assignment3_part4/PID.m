@@ -6,7 +6,7 @@ function [delta_c, psi_int] = PID(psi, psi_d, r_d, psi_int, h)
 % psi_int   : integral part from previous time-step
 % h         : sample time
     sat     = @(x, limit) min(max(x, -limit), limit); % saturation function
-    delta_max = deg2rad(20);
+    delta_max = deg2rad(30);
     
     % control law, PID controller [Kanskje bruke eksempel 15.7 aktivt?]
     w_b     = 0.06;         % [rad/s]
