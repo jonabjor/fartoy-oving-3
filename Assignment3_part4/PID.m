@@ -1,12 +1,12 @@
 function [delta_c, psi_int] = PID(psi, psi_d, r_d, psi_int, h)
-%PID Summary of this function goes here
+%PID 
 % psi       : yaw, state parameter
 % psi_d     : output from reference model, yaw
 % r_d       : output from reference model, yaw-rate
 % psi_int   : integral part from previous time-step
 % h         : sample time
     sat     = @(x, limit) min(max(x, -limit), limit); % saturation function
-    delta_max = deg2rad(20);
+    delta_max = deg2rad(30);
     
     % control law, PID controller [Kanskje bruke eksempel 15.7 aktivt?]
     w_b     = 0.06;         % [rad/s]

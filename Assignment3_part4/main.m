@@ -13,7 +13,7 @@ psi_ref = -110 * pi/180;  % desired yaw angle (rad)
 U_ref   = 9; %7;            % desired surge speed (m/s)
 
 % initial states
-eta = [0 0 deg2rad(-0)]';
+eta = [0 0 deg2rad(-110)]';
 nu  = [0.1 0 0]';
 delta = 0;
 n = 0;
@@ -22,8 +22,7 @@ Qm = 0;
 
 % Initial disturbance
 % Current
-%     Problem 2: Turn off the current
-V_c     = 1;    %1;    % [m/s]
+V_c     = 1;   %1  % [m/s]  Problem 2: Turn off the current
 beta_Vc = pi/4;   % Degrees
 % Wind
 V_w     = 10;
@@ -51,12 +50,14 @@ Xudot   = -8.9830e5;
 Xu      = -(m-Xudot)/T1;
 
 % Guidance
-clear LOSchi
 j           = 2;      % next waypoint number
 finished    = 0;
-Delta       = 1000;
+kappa       = 2;
+y_int       = 0;
+Delta       = 1500;
 ship_length = 161;
 R_switch    = 5 * ship_length;
+addpath('WP_and_pathplotter')
 WP          = load('WP.mat').WP;
 wpt.pos.x   = WP(1, :);
 wpt.pos.y   = WP(2, :);
@@ -114,12 +115,14 @@ for i=1:Ns+1
     end
 
     
-    chi_d               = guidance(x_t, y_t, x_ref, y_ref, x_now, y_now, Delta);
+    chi_d             = guidance(x_t, y_t, x_ref, y_ref, x_now, y_now, Delta);  
+    %[chi_d,y_int]       = guidance_ILOS(x_t, y_t, x_ref, y_ref, x_now, y_now, Delta, y_int, kappa, h);
     psi_d               = chi_d;
         
     % reference models
     [psi_r, r_d, a_d]   = ref_model(chi_d, psi_r, h, r_d, a_d); %ref_model(psi_d, psi_r, h, r_d, a_d); % Pre guidance law.
-%     [psi_r, r_d, a_d]   = ref_model((chi_d - beta_c), psi_r, h, r_d, a_d);    % Compensating for crab angle
+    %[psi_r, r_d, a_d]   = ref_model((chi_d - beta_c), psi_r, h, r_d, a_d);    % Compensating for crab angle
+    
     % control law
     [delta_c, psi_int]  = PID(psi, psi_r, r_d, psi_int, h); % rudder angle command (rad)
 
@@ -132,6 +135,7 @@ for i=1:Ns+1
     % ship dynamics
     u               = [delta_c n_c]';
     [xdot,u,Qm]     = ship(x,u,nu_c,tau_wind,Qm);
+    
     
     
     
@@ -163,7 +167,6 @@ r_d     = (180/pi) * simdata(:,14);     % deg/s
 beta    = (180/pi) * simdata(:,15);     % deg, sideslip
 beta_c  = (180/pi) * simdata(:,16);     % deg, crab angle
 chi_d   = (180/pi) * simdata(:,17)';    % deg, desired course angle
-
 chi     = (psi + beta_c)';
 
 figure(1)
@@ -173,6 +176,7 @@ plot(y,x,'linewidth',2); axis('equal')
 title('North-East positions (m)'); xlabel('(m)'); ylabel('(m)'); 
 subplot(212)
 plot(t,psi,t,psi_d,'linewidth',2);
+legend("Actual yaw angle, \psi", "Desired yaw angle, \psi_d")
 title('Actual and desired yaw angles (deg)'); xlabel('time (s)');
 % subplot(313)
 % plot(t,r,t,r_d,'linewidth',2);
@@ -182,6 +186,7 @@ figure(2)
 figure(gcf)
 subplot(311)
 plot(t,u,t,u_d,'linewidth',2);
+legend("Actual surge velocities", "Desired surge velocities")
 title('Actual and desired surge velocities (m/s)'); xlabel('time (s)');
 subplot(312)
 plot(t,n,t,n_c,'linewidth',2);
@@ -193,14 +198,29 @@ title('Actual and commanded rudder angles (deg)'); xlabel('time (s)');
 figure(3)
 figure(gcf)
 plot(t, beta, t, beta_c, 'linewidth', 2);
-legend('Sideslip', 'Crab angle');
+legend('Sideslip, \beta', 'Crab angle, \beta_c')
 title('sideslip and crab angle');
 
 figure(4)
 figure(gcf)
 plot(t, chi, t, chi_d, 'linewidth', 2);
-legend('Course angle', 'Desired course angle')
+legend('Course angle, \chi', 'Desired course angle, \chi_d')
 title('Course angle and desired course angle');
+
+figure(5)
+figure(gcf)
+subplot(211)
+% Course, desired course, heading
+plot(t,chi,t,chi_d,t,psi,'linewidth',2);
+leg1 = legend('Course $\chi$','Desired course $\chi_d$','Heading $\psi$');
+set(leg1,'Interpreter','latex');
+title('Course, desired course and heading (deg)'); xlabel('time (s)');
+subplot(212)
+% Crab angle and sideslip
+plot(t,beta_c,t,beta,'linewidth',2);
+leg2 = legend('Crab angle $\beta_c$','Sideslip $\beta$');
+set(leg2,'Interpreter','latex');
+title('Crab angle and sideslip (deg)'); xlabel('time (s)');
 
 
 % pathplotter
