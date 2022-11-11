@@ -11,10 +11,6 @@ y_ref   = WP.pos.y(i-1);
 x_t     = WP.pos.x(i);
 y_t     = WP.pos.y(i);
 
-% disp(x_t);
-% disp(x);
-% disp("-----------")
-% pause
 
 if (x_t-x)^2 + (y_t-y)^2 <= R^2
     disp(i)

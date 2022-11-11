@@ -22,8 +22,7 @@ Qm = 0;
 
 % Initial disturbance
 % Current
-%     Problem 2: Turn off the current
-V_c     = 1;    %1;    % [m/s]
+V_c     = 1;   %1  % [m/s]  Problem 2: Turn off the current
 beta_Vc = pi/4;   % Degrees
 % Wind
 V_w     = 10;
@@ -51,12 +50,14 @@ Xudot   = -8.9830e5;
 Xu      = -(m-Xudot)/T1;
 
 % Guidance
-clear LOSchi
 j           = 2;      % next waypoint number
 finished    = 0;
+kappa       = 0.7;
+y_int       = 0;
 Delta       = 1000;
 ship_length = 161;
 R_switch    = 5 * ship_length;
+addpath('WP_and_pathplotter')
 WP          = load('WP.mat').WP;
 wpt.pos.x   = WP(1, :);
 wpt.pos.y   = WP(2, :);
@@ -114,12 +115,14 @@ for i=1:Ns+1
     end
 
     
-    chi_d               = guidance(x_t, y_t, x_ref, y_ref, x_now, y_now, Delta);
+    % chi_d             = guidance(x_t, y_t, x_ref, y_ref, x_now, y_now, Delta);  
+    [chi_d,y_int]       = guidance_ILOS(x_t, y_t, x_ref, y_ref, x_now, y_now, Delta, y_int, kappa, h);
     psi_d               = chi_d;
         
     % reference models
     [psi_r, r_d, a_d]   = ref_model(chi_d, psi_r, h, r_d, a_d); %ref_model(psi_d, psi_r, h, r_d, a_d); % Pre guidance law.
-%     [psi_r, r_d, a_d]   = ref_model((chi_d - beta_c), psi_r, h, r_d, a_d);    % Compensating for crab angle
+    %[psi_r, r_d, a_d]   = ref_model((chi_d - beta_c), psi_r, h, r_d, a_d);    % Compensating for crab angle
+    
     % control law
     [delta_c, psi_int]  = PID(psi, psi_r, r_d, psi_int, h); % rudder angle command (rad)
 
@@ -193,13 +196,13 @@ title('Actual and commanded rudder angles (deg)'); xlabel('time (s)');
 figure(3)
 figure(gcf)
 plot(t, beta, t, beta_c, 'linewidth', 2);
-legend('Sideslip', 'Crab angle');
+legend('Sideslip, \beta', 'Crab angle, \beta_c')
 title('sideslip and crab angle');
 
 figure(4)
 figure(gcf)
 plot(t, chi, t, chi_d, 'linewidth', 2);
-legend('Course angle', 'Desired course angle')
+legend('Course angle, \chi', 'Desired course angle, \chi_d')
 title('Course angle and desired course angle');
 
 

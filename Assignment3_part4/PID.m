@@ -1,5 +1,5 @@
 function [delta_c, psi_int] = PID(psi, psi_d, r_d, psi_int, h)
-%PID Summary of this function goes here
+%PID 
 % psi       : yaw, state parameter
 % psi_d     : output from reference model, yaw
 % r_d       : output from reference model, yaw-rate
