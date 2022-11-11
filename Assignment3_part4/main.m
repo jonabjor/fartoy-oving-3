@@ -52,7 +52,7 @@ Xu      = -(m-Xudot)/T1;
 % Guidance
 j           = 2;      % next waypoint number
 finished    = 0;
-kappa       = 0.7;
+kappa       = 2;
 y_int       = 0;
 Delta       = 1500;
 ship_length = 161;
@@ -217,7 +217,7 @@ set(leg1,'Interpreter','latex');
 title('Course, desired course and heading (deg)'); xlabel('time (s)');
 subplot(212)
 % Crab angle and sideslip
-plot(t,beta,t,beta_c,'linewidth',2);
+plot(t,beta_c,t,beta,'linewidth',2);
 leg2 = legend('Crab angle $\beta_c$','Sideslip $\beta$');
 set(leg2,'Interpreter','latex');
 title('Crab angle and sideslip (deg)'); xlabel('time (s)');
