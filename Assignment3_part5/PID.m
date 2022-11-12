@@ -1,4 +1,4 @@
-function [delta_c, psi_int] = PID(psi, psi_d, r_d, psi_int, h)
+function [delta_c, psi_int] = PID(psi, psi_d, r_d, psi_int, h, K, T)
 %PID Summary of this function goes here
 % psi       : yaw, state parameter
 % psi_d     : output from reference model, yaw
@@ -17,9 +17,9 @@ function [delta_c, psi_int] = PID(psi, psi_d, r_d, psi_int, h)
     % Nomoto model design
 %     T       = 5.81*10;
 %     K       = 0.00074*10;
-    
-    K       = 0.008229598;
-    T       = (192.307692308 + 6.877579092 - 13.961532797);
+%     
+%     K       = 0.008229598;
+%     T       = (192.307692308 + 6.877579092 - 13.961532797);
 
     m       = T/K;
     d       = 1/K;
