@@ -1,4 +1,4 @@
-function [delta_c, psi_int] = PID(psi, psi_d, r_d, psi_int, h)
+function [delta_c, psi_int] = PID(psi, psi_d, r_d, psi_int, h, K, T)
 %PID 
 % psi       : yaw, state parameter
 % psi_d     : output from reference model, yaw
@@ -15,12 +15,6 @@ function [delta_c, psi_int] = PID(psi, psi_d, r_d, psi_int, h)
     w_n     = 1 / (sqrt(1 - 2*zeta^2 + sqrt(4*zeta^4 - 4*zeta^2 + 2)))*w_b;
     
     % Nomoto model design
-%     T       = 5.81*10;
-%     K       = 0.00074*10;
-    
-    K       = 0.008229598;
-    T       = (192.307692308 + 6.877579092 - 13.961532797)/10;
-
     m       = T/K;
     d       = 1/K;
     k       = 0;

@@ -7,7 +7,7 @@
 % USER INPUTS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 h  = 0.1;    % sampling time [s]
-Ns = 64000; %10000;    % no. of samples
+Ns = 14000; %64000;    % no. of samples
 
 psi_ref = -110 * pi/180;  % desired yaw angle (rad)
 U_ref   = 9; %7;            % desired surge speed (m/s)
@@ -62,16 +62,36 @@ WP          = load('WP.mat').WP;
 wpt.pos.x   = WP(1, :);
 wpt.pos.y   = WP(2, :);
 
+% Discretized system
+[K, T] = nomoto(u_d);
+[A_d, B_d, C_d, D_d, E_d] = discretize_system(h, K, T);
+
+% Discrete-time Kalman Filter
+sigma_psi = deg2rad(0.5);
+sigma_r = deg2rad(0.1);
+x0_KF = [0; 0; 0];
+P0_KF = eye(3);
+x_prd = x0_KF;
+P_prd = P0_KF;
+q1 = 0.001;
+q2 = 0.0001;
+Qd = diag([q1 q2]);
+r11 = 1;
+Rd = r11;
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % MAIN LOOP
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-simdata = zeros(Ns+1,17);       % table of simulation data
+simdata = zeros(Ns+1,22);       % table of simulation data
 
 for i=1:Ns+1
 %     fprintf('(x, y) = (%.2f, %.2f) \n',x(4), x(5));
     t       = (i-1) * h;    % time (s)
     psi     = x(6);
-    
+
+    psi_noisy = x(6) + normrnd(0, sigma_psi);
+    r_noisy = x(3) + normrnd(0, sigma_r);
+
     % current disturbance
     uc      = V_c * cos(beta_Vc - psi);
     vc      = V_c * sin(beta_Vc - psi);
@@ -101,7 +121,7 @@ for i=1:Ns+1
     v_r         = x(2) - vc;
     beta        = asin(v_r/sqrt(u_r^2 + v_r^2));
     beta_c      = asin(x(2)/ x(1));
-    
+
     % guidance law
     % Computing chi_d
     x_now = x(4);                 
@@ -114,17 +134,18 @@ for i=1:Ns+1
         U_ref = 0;
     end
 
-    
+    % Guidance system
     chi_d             = guidance(x_t, y_t, x_ref, y_ref, x_now, y_now, Delta);  
     %[chi_d,y_int]       = guidance_ILOS(x_t, y_t, x_ref, y_ref, x_now, y_now, Delta, y_int, kappa, h);
     psi_d               = chi_d;
         
-    % reference models
+    % Reference models
     [psi_r, r_d, a_d]   = ref_model(chi_d, psi_r, h, r_d, a_d); %ref_model(psi_d, psi_r, h, r_d, a_d); % Pre guidance law.
     %[psi_r, r_d, a_d]   = ref_model((chi_d - beta_c), psi_r, h, r_d, a_d);    % Compensating for crab angle
     
-    % control law
-    [delta_c, psi_int]  = PID(psi, psi_r, r_d, psi_int, h); % rudder angle command (rad)
+    % Control law
+    [delta_c, psi_int]  = PID(psi, psi_r, r_d, psi_int, h, K, T); % rudder angle command (rad)
+    %[delta_c, psi_int]  = PID(psi_noisy, psi_r, r_noisy, psi_int, h, K, T); % rudder angle command (rad)
 
 %   When putting t as something else than time... t \in [0.05-0.2], put it 
 %   to 0.05
@@ -134,17 +155,19 @@ for i=1:Ns+1
     
     % ship dynamics
     u               = [delta_c n_c]';
-    [xdot,u,Qm]     = ship(x,u,nu_c,tau_wind,Qm);
-    
-    
+    [xdot,u,Qm]     = ship(x,u,nu_c,tau_wind,Qm);    
+
+    % Kalman filter
+    [x_prd, P_prd] = KF(A_d, B_d, C_d, D_d, E_d, psi_noisy, x_prd, P_prd, Qd, Rd, delta_c);
     
     
     % store simulation data in a table (for testing)
-    simdata(i,:) = [t x(1:3)' x(4:6)' x(7) x(8) u(1) u(2) u_d psi_d r_d beta beta_c, chi_d];
+    simdata(i,:) = [t x(1:3)' x(4:6)' x(7) x(8) u(1) u(2) u_d psi_d r_d beta beta_c, chi_d, x_prd', psi_noisy, r_noisy];
     
  
     % Euler integration
-    x = euler2(xdot,x,h);    
+    x = euler2(xdot,x,h); 
+
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -168,60 +191,72 @@ beta    = (180/pi) * simdata(:,15);     % deg, sideslip
 beta_c  = (180/pi) * simdata(:,16);     % deg, crab angle
 chi_d   = (180/pi) * simdata(:,17)';    % deg, desired course angle
 chi     = (psi + beta_c)';
+psi_hat = (180/pi) * simdata(:, 18);    % deg
+r_hat   = (180/pi) * simdata(:, 19);    % deg/s 
+psi_noisy = (180/pi) * simdata(:, 21); 
+r_noisy = (180/pi) * simdata(:, 22);
 
-figure(1)
-figure(gcf)
-subplot(211)
-plot(y,x,'linewidth',2); axis('equal')
-title('North-East positions (m)'); xlabel('(m)'); ylabel('(m)'); 
-subplot(212)
-plot(t,psi,t,psi_d,'linewidth',2);
-legend("Actual yaw angle, \psi", "Desired yaw angle, \psi_d")
-title('Actual and desired yaw angles (deg)'); xlabel('time (s)');
+% figure(1)
+% figure(gcf)
+% subplot(211)
+% plot(y,x,'linewidth',2); axis('equal')
+% title('North-East positions (m)'); xlabel('(m)'); ylabel('(m)'); 
+% subplot(212)
+% plot(t,psi,t,psi_d,'linewidth',2);
+% legend("Actual yaw angle, \psi", "Desired yaw angle, \psi_d")
+% title('Actual and desired yaw angles (deg)'); xlabel('time (s)');
+% % subplot(313)
+% % plot(t,r,t,r_d,'linewidth',2);
+% % title('Actual and desired yaw rates (deg/s)'); xlabel('time (s)');
+% 
+% figure(2)
+% figure(gcf)
+% subplot(311)
+% plot(t,u,t,u_d,'linewidth',2);
+% legend("Actual surge velocities", "Desired surge velocities")
+% title('Actual and desired surge velocities (m/s)'); xlabel('time (s)');
+% subplot(312)
+% plot(t,n,t,n_c,'linewidth',2);
+% title('Actual and commanded propeller speed (rpm)'); xlabel('time (s)');
 % subplot(313)
-% plot(t,r,t,r_d,'linewidth',2);
-% title('Actual and desired yaw rates (deg/s)'); xlabel('time (s)');
+% plot(t,delta,t,delta_c,'linewidth',2);
+% title('Actual and commanded rudder angles (deg)'); xlabel('time (s)');
+% 
+% figure(3)
+% figure(gcf)
+% plot(t, beta, t, beta_c, 'linewidth', 2);
+% legend('Sideslip, \beta', 'Crab angle, \beta_c')
+% title('sideslip and crab angle');
+% 
+% figure(4)
+% figure(gcf)
+% plot(t, chi, t, chi_d, 'linewidth', 2);
+% legend('Course angle, \chi', 'Desired course angle, \chi_d')
+% title('Course angle and desired course angle');
+% 
+% figure(5)
+% figure(gcf)
+% subplot(211)
+% % Course, desired course, heading
+% plot(t,chi,t,chi_d,t,psi,'linewidth',2);
+% leg1 = legend('Course $\chi$','Desired course $\chi_d$','Heading $\psi$');
+% set(leg1,'Interpreter','latex');
+% title('Course, desired course and heading (deg)'); xlabel('time (s)');
+% subplot(212)
+% % Crab angle and sideslip
+% plot(t,beta_c,t,beta,'linewidth',2);
+% leg2 = legend('Crab angle $\beta_c$','Sideslip $\beta$');
+% set(leg2,'Interpreter','latex');
+% title('Crab angle and sideslip (deg)'); xlabel('time (s)');
 
-figure(2)
-figure(gcf)
-subplot(311)
-plot(t,u,t,u_d,'linewidth',2);
-legend("Actual surge velocities", "Desired surge velocities")
-title('Actual and desired surge velocities (m/s)'); xlabel('time (s)');
-subplot(312)
-plot(t,n,t,n_c,'linewidth',2);
-title('Actual and commanded propeller speed (rpm)'); xlabel('time (s)');
-subplot(313)
-plot(t,delta,t,delta_c,'linewidth',2);
-title('Actual and commanded rudder angles (deg)'); xlabel('time (s)');
-
-figure(3)
-figure(gcf)
-plot(t, beta, t, beta_c, 'linewidth', 2);
-legend('Sideslip, \beta', 'Crab angle, \beta_c')
-title('sideslip and crab angle');
-
-figure(4)
-figure(gcf)
-plot(t, chi, t, chi_d, 'linewidth', 2);
-legend('Course angle, \chi', 'Desired course angle, \chi_d')
-title('Course angle and desired course angle');
-
-figure(5)
+figure(6)
 figure(gcf)
 subplot(211)
-% Course, desired course, heading
-plot(t,chi,t,chi_d,t,psi,'linewidth',2);
-leg1 = legend('Course $\chi$','Desired course $\chi_d$','Heading $\psi$');
-set(leg1,'Interpreter','latex');
-title('Course, desired course and heading (deg)'); xlabel('time (s)');
+plot(t, psi_hat, t, psi, t, psi_noisy)
+legend("\psi_hat", "\psi", "\psi_noisy")
 subplot(212)
-% Crab angle and sideslip
-plot(t,beta_c,t,beta,'linewidth',2);
-leg2 = legend('Crab angle $\beta_c$','Sideslip $\beta$');
-set(leg2,'Interpreter','latex');
-title('Crab angle and sideslip (deg)'); xlabel('time (s)');
-
+plot(t, r_hat, t, r, t, r_noisy)
+legend("r_hat", "r", "r_{noisy}")
 
 % pathplotter
 pathplotter(x, y)
