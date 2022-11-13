@@ -5,7 +5,9 @@ function [Ad, Bd, Cd, Dd, Ed]   = KF_setup(h)
     T       = (192.307692308 + 6.877579092 - 13.961532797)/10;
 
     % Using Nomoto model, with subtracted rudder bias at the input
-    A       = [0, 1, 0; 0, -1/K, -K/T; 0, 0, 0;];
+    A       = [0,   1,      0; 
+                0, -1/T,    -K/T; 
+                0,  0,      0;];
     B       = [0, K/T, 0]';
     C       = [1, 0, 0]';           % Measuring yaw angle
     D       = 0;                    % Zero disturbances

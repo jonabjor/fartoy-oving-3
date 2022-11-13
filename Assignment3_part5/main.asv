@@ -10,7 +10,7 @@ clear;
 clc;
 
 h  = 0.1;    % sampling time [s]
-Ns = 64000; %10000;    % no. of samples
+Ns = 10000;%64000; %10000;    % no. of samples
 
 psi_ref = -110 * pi/180;  % desired yaw angle (rad)
 U_ref   = 9; %7;            % desired surge speed (m/s)
@@ -18,8 +18,8 @@ fprintf("Getting K and T, using Nomoto:\n");
 [K_nomoto, T_nomoto]  = nomoto(U_ref);
 
 % initial states
-eta = [0 0 psi_ref]';
-nu  = [0 0 0]';
+eta = [0 0 deg2rad(-110)]';
+nu  = [0.1 0 0]';
 delta = 0;
 n = 0;
 x = [nu' eta' delta n]'; % x_0
@@ -59,9 +59,9 @@ Xu      = -(m-Xudot)/T1;
 clear LOSchi
 j           = 2;      % next waypoint number
 finished    = 0;
-Delta       = 1500;
+Delta       = 1000;
 ship_length = 161;
-R_switch    = 2 * ship_length;
+R_switch    = 5 * ship_length;
 WP          = load('WP.mat').WP;
 wpt.pos.x   = WP(1, :);
 wpt.pos.y   = WP(2, :);
@@ -123,7 +123,7 @@ for i=1:Ns+1
     u_r         = x(1) - uc;
     v_r         = x(2) - vc;
     beta        = asin(v_r/sqrt(u_r^2 + v_r^2));
-    beta_c      = atan2(x(2), x(1));
+    beta_c      = asin(x(2)/ x(1));
     
     % guidance law
     % Computing chi_d
@@ -139,17 +139,17 @@ for i=1:Ns+1
 
     
     chi_d               = guidance(x_t, y_t, x_ref, y_ref, x_now, y_now, Delta);
-    psi_d               = ssa(chi_d - beta_c);
+    psi_d               = chi_d;
         
     % reference models
-    [psi_r, r_d, a_d]   = ref_model(psi_d, psi_r, h, r_d, a_d); %ref_model(psi_d, psi_r, h, r_d, a_d); % Pre guidance law.
+    [psi_r, r_d, a_d]   = ref_model(chi_d, psi_r, h, r_d, a_d); %ref_model(psi_d, psi_r, h, r_d, a_d); % Pre guidance law.
 %     [psi_r, r_d, a_d]   = ref_model((chi_d - beta_c), psi_r, h, r_d, a_d);    % Compensating for crab angle
     % control law
-    [delta_c, psi_int]  = PID(psi_n, psi_r, r_n, psi_int, h, K_nomoto, T_nomoto); % rudder angle command (rad)
+    [delta_c, psi_int]  = PID(x_hat(1), x_hat(2), r_d, psi_int, h, K_nomoto, T_nomoto); % rudder angle command (rad)
 
 %   When putting t as something else than time... t \in [0.05-0.2], put it 
 %   to 0.05
-    Td              = U_ref * Xu /(0.05 - 1);
+    Td              = U_ref * Xu /K_i (0.05 - 1);
     nnd             = Td / (rho * Dia^4 * KT);
     n_c             = sqrt(abs(nnd)) * sign(nnd);  % propeller speed (rps)
     
