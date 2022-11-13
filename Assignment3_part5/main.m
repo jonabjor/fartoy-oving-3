@@ -7,7 +7,7 @@
 % USER INPUTS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 h  = 0.1;    % sampling time [s]
-Ns = 64000; %10000;    % no. of samples
+Ns = 10000;%64000; %10000;    % no. of samples
 
 psi_ref = -110 * pi/180;  % desired yaw angle (rad)
 U_ref   = 9; %7;            % desired surge speed (m/s)
@@ -15,7 +15,7 @@ fprintf("Getting K and T, using Nomoto:\n");
 [K_nomoto, T_nomoto]  = nomoto(U_ref);
 
 % initial states
-eta = [0 0 deg2rad(-0)]';
+eta = [0 0 deg2rad(-110)]';
 nu  = [0.1 0 0]';
 delta = 0;
 n = 0;
@@ -69,8 +69,10 @@ fprintf("Setting up for kalman filter, checking obervability (1c):\n");
 [Ad, Bd, Cd, Dd, Ed]    = KF_setup(h);
 x_hat                   = [0, 0, 0]';           % x_0
 P_hat                   = eye(3);               %P0
-Qd                      = eye(2);%1e-1*eye(2);
 Rd                      = deg2rad(0.5)^2;
+q11                     = 0.01;
+q22                     = 0.00001;
+Qd                      = diag([q11, q22]);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % MAIN LOOP
@@ -149,8 +151,7 @@ for i=1:Ns+1
     
     
     
-    % store simulation data in a table (for testing)
-    simdata(i,:) = [t x(1:3)' x(4:6)' x(7) x(8) u(1) u(2) u_d psi_d r_d beta beta_c, chi_d, psi_n, r_n, x_hat'];
+    
     
  
     % Euler integration
@@ -166,11 +167,16 @@ for i=1:Ns+1
     
     % state- and covariance correcting
     x_hat   = x_prd + K * (y - Cd' * x_prd);
+%     x_hat
+%     pause
     P_hat   = IKC * P_prd * IKC' + K * Rd * K';
     
     % state- and covariance prediction
     x_prd   = Ad * x_hat + Bd * delta_c;
     P_prd   = Ad * P_hat * Ad' + Ed * Qd * Ed';
+    
+    % store simulation data in a table (for testing)
+    simdata(i,:) = [t x(1:3)' x(4:6)' x(7) x(8) u(1) u(2) u_d psi_d r_d beta beta_c, chi_d, psi_n, r_n, x_hat'];
     
     
 end
