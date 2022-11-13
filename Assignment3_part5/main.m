@@ -10,7 +10,7 @@ clear;
 clc;
 
 h  = 0.1;    % sampling time [s]
-Ns = 64000; %10000;    % no. of samples
+Ns = 20000; %10000;    % no. of samples
 
 psi_ref = -110 * pi/180;  % desired yaw angle (rad)
 U_ref   = 9; %7;            % desired surge speed (m/s)
@@ -145,7 +145,7 @@ for i=1:Ns+1
     [psi_r, r_d, a_d]   = ref_model(psi_d, psi_r, h, r_d, a_d); %ref_model(psi_d, psi_r, h, r_d, a_d); % Pre guidance law.
 %     [psi_r, r_d, a_d]   = ref_model((chi_d - beta_c), psi_r, h, r_d, a_d);    % Compensating for crab angle
     % control law
-    [delta_c, psi_int]  = PID(psi_n, psi_r, r_n, psi_int, h, K_nomoto, T_nomoto); % rudder angle command (rad)
+    [delta_c, psi_int]  = PID(x_hat(1), psi_r, x_hat(2), psi_int, h, K_nomoto, T_nomoto); % rudder angle command (rad)
 
 %   When putting t as something else than time... t \in [0.05-0.2], put it 
 %   to 0.05
@@ -156,8 +156,6 @@ for i=1:Ns+1
     % ship dynamics
     u               = [delta_c n_c]';
  
-      
-    
     % Kalman filter
     %KF-gain
     K       = P_prd * Cd /(Cd' * P_prd * Cd + Rd);
@@ -179,11 +177,6 @@ for i=1:Ns+1
     [xdot,u,Qm]     = ship(x,u,nu_c,tau_wind,Qm);
     % Euler integration
     x = euler2(xdot,x,h);  
-    
-%     x(3)    = x_hat(2);
-%     x(6)    = x_hat(1);
-    
-    
     
     % store simulation data in a table (for testing)
     simdata(i,:) = [t x(1:3)' x(4:6)' x(7) x(8) u(1) u(2) u_d psi_d r_d beta beta_c, chi_d, psi_n, r_n, x_hat'];

@@ -99,7 +99,7 @@ for i=1:Ns+1
     u_r         = x(1) - uc;
     v_r         = x(2) - vc;
     beta        = asin(v_r/sqrt(u_r^2 + v_r^2));
-    beta_c      = asin(x(2)/ x(1));
+    beta_c      = atan2(x(2), x(1));
     
     % guidance law
     % Computing chi_d
